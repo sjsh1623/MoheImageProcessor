@@ -9,6 +9,6 @@ RUN npm install --omit=dev
 COPY src src
 COPY images images
 
-EXPOSE 3000
+EXPOSE 5200
 
 CMD ["npm", "start"]

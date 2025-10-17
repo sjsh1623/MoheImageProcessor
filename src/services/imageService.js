@@ -24,11 +24,10 @@ async function ensureImagesDirectory() {
 async function saveImage(url, fileName) {
   const safeFileName = sanitizeFileName(fileName);
   await ensureImagesDirectory();
-  const targetPath = path.join(IMAGES_DIR, safeFileName);
 
+  let response;
   try {
-    const response = await axios.get(url, { responseType: 'stream' });
-    await pipeline(response.data, fs.createWriteStream(targetPath));
+    response = await axios.get(url, { responseType: 'stream' });
   } catch (error) {
     if (error.response?.status) {
       throw createHttpError(
@@ -38,21 +37,60 @@ async function saveImage(url, fileName) {
       );
     }
 
+    throw createHttpError(500, 'Failed to download image.', error);
+  }
+
+  // Detect file extension from Content-Type header
+  const contentType = response.headers['content-type'];
+  const extension = mime.extension(contentType);
+
+  if (!extension) {
+    throw createHttpError(400, 'Could not determine file type from URL.');
+  }
+
+  const fileNameWithExtension = `${safeFileName}.${extension}`;
+  const targetPath = path.join(IMAGES_DIR, fileNameWithExtension);
+
+  try {
+    await pipeline(response.data, fs.createWriteStream(targetPath));
+  } catch (error) {
     throw createHttpError(500, 'Failed to save image.', error);
   }
 
-  return { fileName: safeFileName, targetPath };
+  return { fileName: fileNameWithExtension, targetPath };
 }
 
 async function resolveImagePath(fileName) {
   const safeFileName = sanitizeFileName(fileName);
-  const targetPath = path.join(IMAGES_DIR, safeFileName);
+  let targetPath = path.join(IMAGES_DIR, safeFileName);
+  let resolvedFileName = safeFileName;
 
-  if (!(await fileExists(targetPath))) {
-    throw createHttpError(404, 'Image not found.');
+  // Check if file exists with the given name (with extension)
+  if (await fileExists(targetPath)) {
+    return { targetPath, safeFileName: resolvedFileName };
   }
 
-  return { targetPath, safeFileName };
+  // If not found and fileName has no extension, search for files with same base name
+  const hasExtension = path.extname(safeFileName) !== '';
+  if (!hasExtension) {
+    try {
+      const files = await fs.promises.readdir(IMAGES_DIR);
+      const matchingFile = files.find((file) => {
+        const baseName = path.basename(file, path.extname(file));
+        return baseName === safeFileName;
+      });
+
+      if (matchingFile) {
+        targetPath = path.join(IMAGES_DIR, matchingFile);
+        resolvedFileName = matchingFile;
+        return { targetPath, safeFileName: resolvedFileName };
+      }
+    } catch (error) {
+      // If readdir fails, fall through to 404 error
+    }
+  }
+
+  throw createHttpError(404, 'Image not found.');
 }
 
 async function getImagePath(fileName) {
