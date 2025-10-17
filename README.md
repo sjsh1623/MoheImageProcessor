@@ -24,7 +24,7 @@ Docker 환경에서는 `http://localhost:5200` 에서 동작합니다.
 ## API 사용 방법
 
 > **확장자 관련 정책**
-> - **저장 시**: 파일명에 확장자를 포함하지 않습니다. 서버가 이미지의 Content-Type을 확인하여 자동으로 적절한 확장자(.jpeg, .png, .webp 등)를 추가합니다.
+> - **저장 시**: 파일명에 확장자를 **반드시 포함**해야 합니다 (예: `sample.jpg`, `my-image.png`).
 > - **조회 시**: 확장자 포함/미포함 모두 가능합니다. 확장자 없이 요청하면 서버가 매칭되는 파일을 자동으로 찾아줍니다.
 
 ### 1. 이미지 저장 (POST /save)
@@ -32,23 +32,22 @@ Docker 환경에서는 `http://localhost:5200` 에서 동작합니다.
 
 **요청 파라미터:**
 - `url` (필수): 다운로드할 이미지의 URL
-- `fileName` (필수): 저장할 파일명 (**확장자 제외**, 예: `sample`, `my-image`)
+- `fileName` (필수): 저장할 파일명 (**확장자 포함**, 예: `sample.jpg`, `my-image.png`)
 
 **예시:**
 ```bash
 curl -X POST http://localhost:3000/save \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://picsum.photos/200","fileName":"sample"}'
+  -d '{"url":"https://picsum.photos/200","fileName":"sample.jpg"}'
 ```
 
 **응답:**
 ```json
 {
   "message": "Image saved successfully.",
-  "fileName": "sample.jpeg"
+  "fileName": "sample.jpg"
 }
 ```
-> 응답의 `fileName`에는 자동으로 추가된 확장자가 포함됩니다.
 
 ### 2. 원본 이미지 조회 (GET /image/:fileName)
 저장된 원본 이미지를 반환합니다. 파일명은 **확장자 포함/미포함 모두 가능**합니다.
@@ -56,10 +55,10 @@ curl -X POST http://localhost:3000/save \
 **예시:**
 ```bash
 # 확장자 포함
-curl http://localhost:3000/image/sample.jpeg --output sample.jpeg
+curl http://localhost:3000/image/sample.jpg --output sample.jpg
 
-# 확장자 없이도 가능 (권장)
-curl http://localhost:3000/image/sample --output sample.jpeg
+# 확장자 없이도 가능
+curl http://localhost:3000/image/sample --output sample.jpg
 ```
 
 ### 3. 리사이징된 이미지 조회 (GET /image/:fileName/:width/:height)
@@ -73,10 +72,10 @@ curl http://localhost:3000/image/sample --output sample.jpeg
 **예시:**
 ```bash
 # 확장자 포함
-curl http://localhost:3000/image/sample.jpeg/100/100 --output sample_100.jpeg
+curl http://localhost:3000/image/sample.jpg/100/100 --output sample_100.jpg
 
-# 확장자 없이도 가능 (권장)
-curl http://localhost:3000/image/sample/100/100 --output sample_100.jpeg
+# 확장자 없이도 가능
+curl http://localhost:3000/image/sample/100/100 --output sample_100.jpg
 ```
 
 자세한 요청/응답 형식은 `docs/api-spec.md` 를 참고하세요.

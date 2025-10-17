@@ -24,10 +24,11 @@ async function ensureImagesDirectory() {
 async function saveImage(url, fileName) {
   const safeFileName = sanitizeFileName(fileName);
   await ensureImagesDirectory();
+  const targetPath = path.join(IMAGES_DIR, safeFileName);
 
-  let response;
   try {
-    response = await axios.get(url, { responseType: 'stream' });
+    const response = await axios.get(url, { responseType: 'stream' });
+    await pipeline(response.data, fs.createWriteStream(targetPath));
   } catch (error) {
     if (error.response?.status) {
       throw createHttpError(
@@ -37,27 +38,10 @@ async function saveImage(url, fileName) {
       );
     }
 
-    throw createHttpError(500, 'Failed to download image.', error);
-  }
-
-  // Detect file extension from Content-Type header
-  const contentType = response.headers['content-type'];
-  const extension = mime.extension(contentType);
-
-  if (!extension) {
-    throw createHttpError(400, 'Could not determine file type from URL.');
-  }
-
-  const fileNameWithExtension = `${safeFileName}.${extension}`;
-  const targetPath = path.join(IMAGES_DIR, fileNameWithExtension);
-
-  try {
-    await pipeline(response.data, fs.createWriteStream(targetPath));
-  } catch (error) {
     throw createHttpError(500, 'Failed to save image.', error);
   }
 
-  return { fileName: fileNameWithExtension, targetPath };
+  return { fileName: safeFileName, targetPath };
 }
 
 async function resolveImagePath(fileName) {
