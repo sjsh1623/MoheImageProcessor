@@ -30,8 +30,19 @@ async function saveImageHandler(req, res) {
 
 async function sendImageHandler(req, res) {
   try {
+    // Decode URI component to handle Korean characters in filename
     const { fileName } = req.params;
-    const { targetPath } = await getImagePath(fileName);
+    const decodedFileName = decodeURIComponent(fileName);
+    const { targetPath, safeFileName } = await getImagePath(decodedFileName);
+
+    // Set proper Content-Type for mobile compatibility
+    const mime = require('mime-types');
+    const mimeType = mime.lookup(safeFileName) || 'application/octet-stream';
+    res.setHeader('Content-Type', mimeType);
+
+    // Add cache control headers for better performance
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+
     return res.sendFile(targetPath);
   } catch (error) {
     return handleError(res, error, 'Failed to serve image.', 'Failed to send image');
@@ -40,10 +51,15 @@ async function sendImageHandler(req, res) {
 
 async function sendResizedImageHandler(req, res) {
   try {
+    // Decode URI component to handle Korean characters in filename
     const { fileName, width, height } = req.params;
-    const { buffer, mimeType } = await getResizedImage(fileName, width, height);
+    const decodedFileName = decodeURIComponent(fileName);
+    const { buffer, mimeType } = await getResizedImage(decodedFileName, width, height);
 
     res.setHeader('Content-Type', mimeType);
+    // Add cache control headers for better performance
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+
     return res.send(buffer);
   } catch (error) {
     return handleError(res, error, 'Failed to resize image.', 'Failed to resize image');
