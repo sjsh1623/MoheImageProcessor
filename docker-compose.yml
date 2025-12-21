@@ -6,6 +6,7 @@ services:
     ports:
       - "5200:5200"
     volumes:
-      - ./images:/app/images
+      - /Users/andrewlim/Desktop/Mohe/images:/images
     environment:
       - PORT=5200
+      - IMAGES_DIR=/images

@@ -26,9 +26,16 @@ async function saveImage(url, fileName) {
   await ensureImagesDirectory();
   const targetPath = path.join(IMAGES_DIR, safeFileName);
 
+  // 서브디렉토리가 있으면 생성 (예: place/, menu/)
+  const targetDir = path.dirname(targetPath);
+  if (targetDir !== IMAGES_DIR) {
+    await ensureDirectory(targetDir);
+  }
+
   try {
     const response = await axios.get(url, { responseType: 'stream' });
     await pipeline(response.data, fs.createWriteStream(targetPath));
+    console.log(`✅ Image saved: ${targetPath}`);
   } catch (error) {
     if (error.response?.status) {
       throw createHttpError(
