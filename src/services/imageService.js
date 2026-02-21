@@ -4,6 +4,7 @@ const path = require('path');
 const sharp = require('sharp');
 const mime = require('mime-types');
 const { pipeline } = require('stream/promises');
+const { v4: uuidv4 } = require('uuid');
 
 const { IMAGES_DIR } = require('../config/constants');
 const { ensureDirectory, sanitizeFileName, fileExists } = require('../utils/fileUtils');
@@ -46,6 +47,41 @@ async function saveImage(url, fileName) {
     }
 
     throw createHttpError(500, 'Failed to save image.', error);
+  }
+
+  return { fileName: safeFileName, targetPath };
+}
+
+/**
+ * Upload image from multipart form data
+ * @param {Object} file - Multer file object
+ * @param {string} subdir - Optional subdirectory (e.g., 'profile', 'place')
+ * @returns {Object} { fileName, targetPath }
+ */
+async function uploadImage(file, subdir = '') {
+  await ensureImagesDirectory();
+
+  // Generate unique filename with UUID
+  const fileExtension = path.extname(file.originalname) || '.jpg';
+  const uniqueFileName = `${uuidv4()}${fileExtension}`;
+  const finalFileName = subdir ? `${subdir}/${uniqueFileName}` : uniqueFileName;
+  const safeFileName = sanitizeFileName(finalFileName);
+  const targetPath = path.join(IMAGES_DIR, safeFileName);
+
+  // Create subdirectory if needed
+  const targetDir = path.dirname(targetPath);
+  if (targetDir !== IMAGES_DIR) {
+    await ensureDirectory(targetDir);
+  }
+
+  try {
+    // Move the uploaded file from temp location to target path
+    await fs.promises.copyFile(file.path, targetPath);
+    // Clean up temp file
+    await fs.promises.unlink(file.path).catch(() => {});
+    console.log(`✅ Image uploaded: ${targetPath}`);
+  } catch (error) {
+    throw createHttpError(500, 'Failed to save uploaded image.', error);
   }
 
   return { fileName: safeFileName, targetPath };
@@ -118,6 +154,7 @@ async function getResizedImage(fileName, width, height) {
 module.exports = {
   ensureImagesDirectory,
   saveImage,
+  uploadImage,
   getImagePath,
   getResizedImage,
 };

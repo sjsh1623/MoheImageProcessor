@@ -6,7 +6,15 @@ services:
     ports:
       - "5200:5200"
     volumes:
-      - /Users/andrewlim/Desktop/Mohe/images:/images
+      - /Volumes/Andrew/images:/images
     environment:
       - PORT=5200
       - IMAGES_DIR=/images
+    networks:
+      - proxy_network
+    restart: unless-stopped
+
+networks:
+  proxy_network:
+    external: true
+    name: proxy_network

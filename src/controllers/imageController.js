@@ -1,5 +1,6 @@
 const {
   saveImage,
+  uploadImage,
   getImagePath,
   getResizedImage,
 } = require('../services/imageService');
@@ -28,11 +29,44 @@ async function saveImageHandler(req, res) {
   }
 }
 
+async function uploadImageHandler(req, res) {
+  try {
+    const file = req.file;
+    const { subdir } = req.body || {};
+
+    if (!file) {
+      return res.status(400).json({ message: 'Image file is required.' });
+    }
+
+    // Validate file type
+    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ message: 'Only image files are allowed.' });
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      return res.status(400).json({ message: 'File size must be less than 10MB.' });
+    }
+
+    const { fileName: savedFileName } = await uploadImage(file, subdir || '');
+    return res.status(201).json({
+      success: true,
+      message: 'Image uploaded successfully.',
+      fileName: savedFileName,
+      imageUrl: `/image/${savedFileName}`
+    });
+  } catch (error) {
+    return handleError(res, error, 'Failed to upload image.', 'Failed to upload image');
+  }
+}
+
 async function sendImageHandler(req, res) {
   try {
     // Decode URI component to handle Korean characters in filename
-    const { fileName } = req.params;
-    const decodedFileName = decodeURIComponent(fileName);
+    const { subdir, fileName } = req.params;
+    // If subdir exists, combine with fileName; otherwise use fileName directly
+    const rawPath = subdir ? `${subdir}/${fileName}` : fileName;
+    const decodedFileName = decodeURIComponent(rawPath);
     const { targetPath, safeFileName } = await getImagePath(decodedFileName);
 
     // Set proper Content-Type for mobile compatibility
@@ -52,8 +86,10 @@ async function sendImageHandler(req, res) {
 async function sendResizedImageHandler(req, res) {
   try {
     // Decode URI component to handle Korean characters in filename
-    const { fileName, width, height } = req.params;
-    const decodedFileName = decodeURIComponent(fileName);
+    const { subdir, fileName, width, height } = req.params;
+    // If subdir exists, combine with fileName; otherwise use fileName directly
+    const rawPath = subdir ? `${subdir}/${fileName}` : fileName;
+    const decodedFileName = decodeURIComponent(rawPath);
     const { buffer, mimeType } = await getResizedImage(decodedFileName, width, height);
 
     res.setHeader('Content-Type', mimeType);
@@ -68,6 +104,7 @@ async function sendResizedImageHandler(req, res) {
 
 module.exports = {
   saveImageHandler,
+  uploadImageHandler,
   sendImageHandler,
   sendResizedImageHandler,
 };
